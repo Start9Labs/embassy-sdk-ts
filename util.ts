@@ -13,16 +13,22 @@ export function unwrapResultType<T>(res: T.ResultType<T>): T {
 }
 
 /** Used to check if the file exists before hand */
-export const exists = (effects: T.Effects, props: { path: string; volumeId: string }) =>
+export const exists = (
+  effects: T.Effects,
+  props: { path: string; volumeId: string },
+) =>
   effects.metadata(props).then(
     (_) => true,
-    (_) => false
+    (_) => false,
   );
 
 export const errorCode = (code: number, error: string) => ({
   "error-code": [code, error] as const,
 });
 export const error = (error: string) => ({ error });
+export const okOf = <A>(result: A) => ({
+  result,
+});
 export const ok = { result: null };
 
 export const isKnownError = (e: unknown): e is T.KnownError =>

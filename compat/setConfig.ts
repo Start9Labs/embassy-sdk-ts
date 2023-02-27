@@ -1,11 +1,10 @@
 import { YAML } from "../dependencies.ts";
 import {
-  Config,
   DependsOn,
   Effects,
-  ExpectedExports,
-  SetResult,
+  LegacyExpectedExports as ExpectedExports,
 } from "../types.ts";
+import { okOf } from "../util.ts";
 
 /**
  * Will set the config to the default start9/config.yaml
@@ -17,7 +16,7 @@ import {
  */
 export const setConfig = async (
   effects: Effects,
-  newConfig: Config,
+  newConfig: Record<string, unknown>,
   dependsOn: DependsOn = {},
 ) => {
   await effects.createDir({
@@ -30,11 +29,12 @@ export const setConfig = async (
     volumeId: "main",
   });
 
-  const result: SetResult = {
-    signal: "SIGTERM",
-    "depends-on": dependsOn,
-  };
-  return { result };
+  return okOf(
+    {
+      signal: "SIGTERM",
+      "depends-on": dependsOn,
+    } as const,
+  );
 };
 
 const _typeConversionCheck: ExpectedExports.setConfig = setConfig;

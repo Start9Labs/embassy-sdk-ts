@@ -1,8 +1,12 @@
 import { getConfig, setConfig } from "./mod.ts";
 import * as T from "../types.ts";
+
+import { LegacyExpectedExports as ExpectedExports } from "../types.ts";
 import * as M from "../migrations.ts";
 import * as util from "../util.ts";
 import { EmVer } from "../emver-lite/mod.ts";
+import { ConfigSpec } from "../types/config-types.ts";
+import { Config } from "../config_builder/mod.ts";
 
 export interface NoRepeat<version extends string, type extends "up" | "down"> {
   version: version;
@@ -19,15 +23,19 @@ export interface NoRepeat<version extends string, type extends "up" | "down"> {
 export function updateConfig<
   version extends string,
   type extends "up" | "down",
-  >(
-    fn: (config: T.Config, effects: T.Effects) => T.Config | Promise<T.Config>,
-    configured: boolean,
-    noRepeat?: NoRepeat<version, type>,
-    noFail = false,
+>(
+  fn: (
+    config: Record<string, unknown>,
+    effects: T.Effects,
+  ) => ConfigSpec | Promise<ConfigSpec>,
+  configured: boolean,
+  noRepeat?: NoRepeat<version, type>,
+  noFail = false,
 ): M.MigrationFn<version, type> {
   return M.migrationFn(async (effects: T.Effects) => {
     await noRepeatGuard(effects, noRepeat, async () => {
-      let config = util.unwrapResultType(await getConfig({})(effects)).config;
+      let config =
+        util.unwrapResultType(await getConfig(Config.of({}))(effects)).config;
       if (config) {
         try {
           config = await fn(config, effects);
@@ -48,16 +56,19 @@ export function updateConfig<
 export async function noRepeatGuard<
   version extends string,
   type extends "up" | "down",
-  >(
-    effects: T.Effects,
-    noRepeat: NoRepeat<version, type> | undefined,
-    fn: () => Promise<void>,
+>(
+  effects: T.Effects,
+  noRepeat: NoRepeat<version, type> | undefined,
+  fn: () => Promise<void>,
 ): Promise<void> {
   if (!noRepeat) {
     return fn();
   }
   if (
-    !await util.exists(effects, { path: "start9/migrations", volumeId: "main" })
+    !(await util.exists(effects, {
+      path: "start9/migrations",
+      volumeId: "main",
+    }))
   ) {
     await effects.createDir({ path: "start9/migrations", volumeId: "main" });
   }
@@ -66,7 +77,7 @@ export async function noRepeatGuard<
     volumeId: "main",
   };
   if (noRepeat.type === "up") {
-    if (!await util.exists(effects, migrationPath)) {
+    if (!(await util.exists(effects, migrationPath))) {
       await fn();
       await effects.writeFile({ ...migrationPath, toWrite: "" });
     }
@@ -84,7 +95,10 @@ export async function initNoRepeat<versions extends string>(
   startingVersion: string,
 ) {
   if (
-    !await util.exists(effects, { path: "start9/migrations", volumeId: "main" })
+    !(await util.exists(effects, {
+      path: "start9/migrations",
+      volumeId: "main",
+    }))
   ) {
     const starting = EmVer.parse(startingVersion);
     await effects.createDir({ path: "start9/migrations", volumeId: "main" });
@@ -104,13 +118,9 @@ export async function initNoRepeat<versions extends string>(
 export function fromMapping<versions extends string>(
   migrations: M.MigrationMapping<versions>,
   currentVersion: string,
-): T.ExpectedExports.migration {
+): ExpectedExports.migration {
   const inner = M.fromMapping(migrations, currentVersion);
-  return async (
-    effects: T.Effects,
-    version: string,
-    direction?: unknown,
-  ) => {
+  return async (effects: T.Effects, version: string, direction?: unknown) => {
     await initNoRepeat(
       effects,
       migrations,

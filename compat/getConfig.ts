@@ -1,8 +1,9 @@
+import { Config } from "../config_builder/config.ts";
 import { YAML } from "../dependencies.ts";
 import { matches } from "../dependencies.ts";
-import { ExpectedExports } from "../types.ts";
-import { ConfigSpec } from "../types.ts";
-import { typeFromProps, TypeFromProps } from "../utils/propertiesMatcher.ts";
+import { LegacyExpectedExports as ExpectedExports } from "../types.ts";
+import { ConfigSpec } from "../types/config-types.ts";
+import { TypeFromProps, typeFromProps } from "../utils/propertiesMatcher.ts";
 
 const { any, string, dictionary } = matches;
 
@@ -17,7 +18,7 @@ const matchConfig = dictionary([string, any]);
  * @returns
  */
 export const getConfig =
-  (spec: ConfigSpec): ExpectedExports.getConfig =>
+  <A extends ConfigSpec>(spec: Config<A>): ExpectedExports.getConfig =>
   async (effects) => {
     const config = await effects
       .readFile({
@@ -34,7 +35,7 @@ export const getConfig =
     return {
       result: {
         config,
-        spec,
+        spec: spec.build(),
       },
     };
   };
@@ -48,27 +49,34 @@ export const getConfig =
  * @returns A funnction for getConfig and the matcher for the spec sent in
  */
 export const getConfigAndMatcher = <Spec extends ConfigSpec>(
-  spec: Spec
-): [ExpectedExports.getConfig, matches.Parser<unknown, TypeFromProps<Spec>>] => [
-  async (effects) => {
-    const config = await effects
-      .readFile({
-        path: "start9/config.yaml",
-        volumeId: "main",
-      })
-      .then((x) => YAML.parse(x))
-      .then((x) => matchConfig.unsafeCast(x))
-      .catch((e) => {
-        effects.info(`Got error ${e} while trying to read the config`);
-        return undefined;
-      });
+  spec: Config<Spec>,
+): [
+  ExpectedExports.getConfig,
+  matches.Parser<unknown, TypeFromProps<Spec>>,
+] => {
+  const specBuilt: Spec = spec.build();
 
-    return {
-      result: {
-        config,
-        spec,
-      },
-    };
-  },
-  typeFromProps(spec),
-];
+  return [
+    async (effects) => {
+      const config = await effects
+        .readFile({
+          path: "start9/config.yaml",
+          volumeId: "main",
+        })
+        .then((x) => YAML.parse(x))
+        .then((x) => matchConfig.unsafeCast(x))
+        .catch((e) => {
+          effects.info(`Got error ${e} while trying to read the config`);
+          return undefined;
+        });
+
+      return {
+        result: {
+          config,
+          spec: specBuilt,
+        },
+      };
+    },
+    typeFromProps(specBuilt),
+  ];
+};
