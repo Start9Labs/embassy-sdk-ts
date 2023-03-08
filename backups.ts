@@ -33,7 +33,7 @@ type BackupSet = {
  * srcVolume: 'main', srcPath:'smallData/', dstPath: 'main/smallData/', dstVolume: : Backups.BACKUP
  * }, {
  * srcVolume: 'main', srcPath:'bigData/', dstPath: 'main/bigData/', dstVolume: : Backups.BACKUP, options: {exclude:['bigData/excludeThis']}}
- * ).build()
+ * ).build()q
  * ```
  */
 export class Backups {
@@ -42,19 +42,18 @@ export class Backups {
   constructor(
     private options = DEFAULT_OPTIONS,
     private backupSet = [] as BackupSet[],
-  ) {
-  }
+  ) {}
   static volumes(...volumeNames: string[]) {
-    return new Backups().addSets(...volumeNames.map((srcVolume) => ({
-      srcVolume,
-      srcPath: "./",
-      dstPath: `./${srcVolume}/`,
-      dstVolume: Backups.BACKUP,
-    })));
+    return new Backups().addSets(
+      ...volumeNames.map((srcVolume) => ({
+        srcVolume,
+        srcPath: "./",
+        dstPath: `./${srcVolume}/`,
+        dstVolume: Backups.BACKUP,
+      })),
+    );
   }
-  static addSets(
-    ...options: BackupSet[]
-  ) {
+  static addSets(...options: BackupSet[]) {
     return new Backups().addSets(...options);
   }
   static with_options(options?: Partial<T.BackupOptions>) {
@@ -68,23 +67,55 @@ export class Backups {
     return this;
   }
   volumes(...volumeNames: string[]) {
-    return this.addSets(...volumeNames.map((srcVolume) => ({
-      srcVolume,
-      srcPath: "./",
-      dstPath: `./${srcVolume}/`,
-      dstVolume: Backups.BACKUP,
-    })));
+    return this.addSets(
+      ...volumeNames.map((srcVolume) => ({
+        srcVolume,
+        srcPath: "./",
+        dstPath: `./${srcVolume}/`,
+        dstVolume: Backups.BACKUP,
+      })),
+    );
   }
-  addSets(
-    ...options: BackupSet[]
-  ) {
+  addSets(...options: BackupSet[]) {
     options.forEach((x) =>
-      this.backupSet.push({ ...x, options: { ...this.options, ...x.options } })
+      this.backupSet.push({ ...x, options: { ...this.options, ...x.options } }),
     );
     return this;
   }
   build() {
     const createBackup: T.ExpectedExports.createBackup = async (effects) => {
+      const previousItems = (
+        await effects
+          .readDir({
+            volumeId: Backups.BACKUP,
+            path: ".",
+          })
+          .catch(() => [])
+      ).map((x) => `${x}`);
+      const backupPaths = this.backupSet
+        .filter((x: any) => x.dstVolume === Backups.BACKUP)
+        .map((x) => x.dstPath)
+        .map((x) => x.replace(/\.\/([^]*)\//, "$1"));
+      const filteredItems = previousItems.filter(
+        (x) => backupPaths.indexOf(x) === -1,
+      );
+      for (const itemToRemove of filteredItems) {
+        effects.error(`Trying to remove ${itemToRemove}`);
+        await effects
+          .removeDir({
+            volumeId: Backups.BACKUP,
+            path: itemToRemove,
+          })
+          .catch(() =>
+            effects.removeFile({
+              volumeId: Backups.BACKUP,
+              path: itemToRemove,
+            }),
+          )
+          .catch(() => {
+            effects.warn(`Failed to remove ${itemToRemove} from backup volume`);
+          });
+      }
       for (const item of this.backupSet) {
         if (notEmptyPath(item.dstPath)) {
           await effects.createDir({
@@ -92,13 +123,15 @@ export class Backups {
             path: item.dstPath,
           });
         }
-        await effects.runRsync({
-          ...item,
-          options: {
-            ...this.options,
-            ...item.options,
-          },
-        }).wait();
+        await effects
+          .runRsync({
+            ...item,
+            options: {
+              ...this.options,
+              ...item.options,
+            },
+          })
+          .wait();
       }
       return ok;
     };
@@ -110,16 +143,18 @@ export class Backups {
             path: item.srcPath,
           });
         }
-        await effects.runRsync({
-          options: {
-            ...this.options,
-            ...item.options,
-          },
-          srcVolume: item.dstVolume,
-          dstVolume: item.srcVolume,
-          srcPath: item.dstPath,
-          dstPath: item.srcPath,
-        }).wait();
+        await effects
+          .runRsync({
+            options: {
+              ...this.options,
+              ...item.options,
+            },
+            srcVolume: item.dstVolume,
+            dstVolume: item.srcVolume,
+            srcPath: item.dstPath,
+            dstPath: item.srcPath,
+          })
+          .wait();
       }
       return ok;
     };

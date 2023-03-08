@@ -49,9 +49,11 @@ export namespace ExpectedExports {
 /** Used to reach out from the pure js runtime */
 export type Effects = {
   /** Usable when not sandboxed */
-  writeFile(
-    input: { path: string; volumeId: string; toWrite: string },
-  ): Promise<void>;
+  writeFile(input: {
+    path: string;
+    volumeId: string;
+    toWrite: string;
+  }): Promise<void>;
   readFile(input: { volumeId: string; path: string }): Promise<string>;
   metadata(input: { volumeId: string; path: string }): Promise<Metadata>;
   /** Create a directory. Usable when not sandboxed */
@@ -61,18 +63,23 @@ export type Effects = {
   removeFile(input: { volumeId: string; path: string }): Promise<void>;
 
   /** Write a json file into an object. Usable when not sandboxed */
-  writeJsonFile(
-    input: { volumeId: string; path: string; toWrite: Record<string, unknown> },
-  ): Promise<void>;
+  writeJsonFile(input: {
+    volumeId: string;
+    path: string;
+    toWrite: Record<string, unknown>;
+  }): Promise<void>;
 
   /** Read a json file into an object */
-  readJsonFile(
-    input: { volumeId: string; path: string },
-  ): Promise<Record<string, unknown>>;
+  readJsonFile(input: {
+    volumeId: string;
+    path: string;
+  }): Promise<Record<string, unknown>>;
 
-  runCommand(
-    input: { command: string; args?: string[]; timeoutMillis?: number },
-  ): Promise<ResultType<string>>;
+  runCommand(input: {
+    command: string;
+    args?: string[];
+    timeoutMillis?: number;
+  }): Promise<ResultType<string>>;
   runDaemon(input: { command: string; args?: string[] }): {
     wait(): Promise<ResultType<string>>;
     term(): Promise<void>;
@@ -127,6 +134,20 @@ export type Effects = {
     wait: () => Promise<null>;
     progress: () => Promise<number>;
   };
+
+  readDir(options: { volumeId: string; path: string }): Promise<string[]>;
+
+  chmod(options: {
+    volumeId: string;
+    path: string;
+    mode: number;
+  }): Promise<void>;
+
+  chown(options: {
+    volumeId: string;
+    path: string;
+    uid: number;
+  }): Promise<void>;
 };
 
 // rsync options: https://linux.die.net/man/1/rsync
@@ -209,8 +230,8 @@ export type Target<T extends string, V> = V & {
 
 export type UniqueBy =
   | {
-    any: UniqueBy[];
-  }
+      any: UniqueBy[];
+    }
   | string
   | null;
 
@@ -220,19 +241,19 @@ export type WithNullable<T> = T & {
 export type DefaultString =
   | string
   | {
-    /** The chars available for the randome generation */
-    charset?: string;
-    /** Length that we generate to */
-    len: number;
-  };
+      /** The chars available for the randome generation */
+      charset?: string;
+      /** Length that we generate to */
+      len: number;
+    };
 
 export type ValueSpecString = // deno-lint-ignore ban-types
   (
     | {}
     | {
-      pattern: string;
-      "pattern-description": string;
-    }
+        pattern: string;
+        "pattern-description": string;
+      }
   ) & {
     copyable?: boolean;
     masked?: boolean;
@@ -250,70 +271,72 @@ export type ValueSpecBoolean = Record<string, unknown>;
 export type ValueSpecAny =
   | Tag<"boolean", WithDescription<WithDefault<ValueSpecBoolean, boolean>>>
   | Tag<
-    "string",
-    WithDescription<
-      WithNullableDefault<WithNullable<ValueSpecString>, DefaultString>
-    >
-  >
-  | Tag<
-    "number",
-    WithDescription<WithNullableDefault<WithNullable<ValueSpecNumber>, number>>
-  >
-  | Tag<
-    "enum",
-    WithDescription<
-      WithDefault<
-        {
-          values: readonly string[] | string[];
-          "value-names": {
-            [key: string]: string;
-          };
-        },
-        string
+      "string",
+      WithDescription<
+        WithNullableDefault<WithNullable<ValueSpecString>, DefaultString>
       >
     >
-  >
+  | Tag<
+      "number",
+      WithDescription<
+        WithNullableDefault<WithNullable<ValueSpecNumber>, number>
+      >
+    >
+  | Tag<
+      "enum",
+      WithDescription<
+        WithDefault<
+          {
+            values: readonly string[] | string[];
+            "value-names": {
+              [key: string]: string;
+            };
+          },
+          string
+        >
+      >
+    >
   | Tag<"list", ValueSpecList>
   | Tag<"object", WithDescription<WithNullableDefault<ValueSpecObject, Config>>>
   | Tag<"union", WithDescription<WithDefault<ValueSpecUnion, string>>>
   | Tag<
-    "pointer",
-    WithDescription<
-      | Subtype<
-        "package",
-        | Target<
-          "tor-key",
-          {
-            "package-id": string;
-            interface: string;
-          }
-        >
-        | Target<
-          "tor-address",
-          {
-            "package-id": string;
-            interface: string;
-          }
-        >
-        | Target<
-          "lan-address",
-          {
-            "package-id": string;
-            interface: string;
-          }
-        >
-        | Target<
-          "config",
-          {
-            "package-id": string;
-            selector: string;
-            multi: boolean;
-          }
-        >
+      "pointer",
+      WithDescription<
+        | Subtype<
+            "package",
+            | Target<
+                "tor-key",
+                {
+                  "package-id": string;
+                  interface: string;
+                }
+              >
+            | Target<
+                "tor-address",
+                {
+                  "package-id": string;
+                  interface: string;
+                }
+              >
+            | Target<
+                "lan-address",
+                {
+                  "package-id": string;
+                  interface: string;
+                }
+              >
+            | Target<
+                "config",
+                {
+                  "package-id": string;
+                  selector: string;
+                  multi: boolean;
+                }
+              >
+          >
+        | Subtype<"system", Record<string, unknown>>
       >
-      | Subtype<"system", Record<string, unknown>>
-    >
-  >;
+    >;
 export type ValueSpecUnion = {
   /** What tag for the specification, for tag unions */
   tag: {
@@ -338,31 +361,34 @@ export type ValueSpecObject = {
 };
 export type ValueSpecList =
   | Subtype<
-    "boolean",
-    WithDescription<WithDefault<ListSpec<ValueSpecBoolean>, boolean[]>>
-  >
-  | Subtype<
-    "string",
-    WithDescription<WithDefault<ListSpec<ValueSpecString>, string[]>>
-  >
-  | Subtype<
-    "number",
-    WithDescription<WithDefault<ListSpec<ValueSpecNumber>, number[]>>
-  >
-  | Subtype<
-    "enum",
-    WithDescription<WithDefault<ListSpec<ValueSpecEnum>, string[]>>
-  >
-  | Subtype<
-    "object",
-    WithDescription<
-      WithNullableDefault<ListSpec<ValueSpecObject>, Record<string, unknown>[]>
+      "boolean",
+      WithDescription<WithDefault<ListSpec<ValueSpecBoolean>, boolean[]>>
     >
-  >
   | Subtype<
-    "union",
-    WithDescription<WithDefault<ListSpec<ValueSpecUnion>, string[]>>
-  >;
+      "string",
+      WithDescription<WithDefault<ListSpec<ValueSpecString>, string[]>>
+    >
+  | Subtype<
+      "number",
+      WithDescription<WithDefault<ListSpec<ValueSpecNumber>, number[]>>
+    >
+  | Subtype<
+      "enum",
+      WithDescription<WithDefault<ListSpec<ValueSpecEnum>, string[]>>
+    >
+  | Subtype<
+      "object",
+      WithDescription<
+        WithNullableDefault<
+          ListSpec<ValueSpecObject>,
+          Record<string, unknown>[]
+        >
+      >
+    >
+  | Subtype<
+      "union",
+      WithDescription<WithDefault<ListSpec<ValueSpecUnion>, string[]>>
+    >;
 export type ValueSpecEnum = {
   values: string[];
   "value-names": { [key: string]: string };
@@ -414,8 +440,8 @@ export type DependsOn = {
 export type KnownError =
   | { error: string }
   | {
-    "error-code": [number, string] | readonly [number, string];
-  };
+      "error-code": [number, string] | readonly [number, string];
+    };
 export type ResultType<T> = KnownError | { result: T };
 
 export type PackagePropertiesV2 = {
