@@ -156,6 +156,7 @@ export type BackupOptions = {
   force: boolean;
   ignoreExisting: boolean;
   exclude: string[];
+  noPermisions?: boolean;
 };
 export type Metadata = {
   fileType: string;
