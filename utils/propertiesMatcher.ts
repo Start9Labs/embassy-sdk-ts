@@ -217,7 +217,7 @@ export function guardAll<A extends ValueSpecAny>(value: A): matches.Parser<unkno
       const spec = (matchSpec.test(value) && value.spec) || {};
       const rangeValidate = (matchRange.test(value) && matchNumberWithRange(value.range).test) || (() => true);
 
-      const { default: _, ...arrayOfSpec } = spec;
+      const { ...arrayOfSpec } = spec;
 
       const subtype = matchSubType.unsafeCast(value).subtype;
       return defaultNullable(
